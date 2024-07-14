@@ -13,14 +13,16 @@ function Get-AITMountedModel {
     #>
     [CmdletBinding()]
     param()
-
-    $endpoint = "$script:aitoolsBaseUrl/openai/loadedmodels"
-
-    try {
-        $response = Invoke-RestMethod -Uri $endpoint -Method Get
-        $models = $response | Select-Object -ExpandProperty data
-        return $models
-    } catch {
-        Write-Error "Failed to retrieve loaded models from the AI Toolkit API. Error: $($_.Exception.Message)"
+    process {
+        try {
+            $loadedModels = Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/loadedmodels"
+            foreach ($model in $loadedModels) {
+                [PSCustomObject]@{
+                    Model = $model
+                }
+            }
+        } catch {
+            throw $PSItem
+        }
     }
 }

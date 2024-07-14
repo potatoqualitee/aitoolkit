@@ -9,17 +9,37 @@ function Set-AITConfig {
     .PARAMETER BaseUrl
     The base URL of the AI Toolkit API.
 
+    .PARAMETER Model
+    The name of the model to set as default.
+
     .EXAMPLE
-    Set-AITConfig -BaseUrl "http://localhost:8080"
+    Set-AITConfig -BaseUrl http://localhost:8080
 
     This command sets the base URL for the AI Toolkit API to "http://localhost:8080".
+
+    .EXAMPLE
+    Set-AITConfig -Model mistral-7b-v02-int4-cpu
+
+    This command sets the default model to mistral-7b-v02-int4-cpu.
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$BaseUrl
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string]$BaseUrl,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string]$Model
     )
 
-    $script:aitoolsBaseUrl = $BaseUrl
-    Write-Output "AI Toolkit API base URL set to '$script:aitoolsBaseUrl'."
+    if ($BaseUrl) {
+        $script:aitoolsBaseUrl = $BaseUrl
+    }
+
+    if ($Model) {
+        $script:mountedmodel = $Model
+    }
+
+    [pscustomobject]@{
+        BaseUrl = $script:aitoolsBaseUrl
+        Model = $script:mountedmodel
+    }
 }

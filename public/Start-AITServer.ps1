@@ -9,6 +9,9 @@ function Start-AITServer {
     .PARAMETER Path
     Specifies the custom path to the Inference Service Agent executable. If not provided, the function will attempt to locate it automatically.
 
+    .PARAMETER ModelDirPath
+    Specifies the custom model directory path. If not provided, the function will use the default path.
+
     .EXAMPLE
     Start-AITServer
 
@@ -25,63 +28,102 @@ function Start-AITServer {
     [CmdletBinding()]
     param (
         [Parameter(HelpMessage = "Custom path to the Inference Service Agent executable")]
-        [string]$Path
+        [string]$Path,
+        [Parameter(HelpMessage = "Custom model directory path")]
+        [string]$ModelDirPath
     )
     begin {
+        Write-Verbose "Initializing Start-AITServer."
         if (-not $Path) {
+            Write-Verbose "No custom path provided, attempting to locate the executable automatically."
             $extension = "ms-windows-ai-studio.windows-ai-studio-*"
             $possibleBasePaths = @(
-                if ($PSVersionTable.Platform -eq "Win32NT") {
+                if ($PSVersionTable.Platform -notmatch "nix") {
                     "$env:USERPROFILE\.vscode-insiders\extensions"
                     "$env:USERPROFILE\.vscode\extensions"
-                } elseif ($IsMacOS) {
+                } else {
                     "$HOME/.vscode-insiders/extensions"
                     "$HOME/.vscode/extensions"
-                } else {
-                    "$HOME/.vscode-server-insiders/extensions"
-                    "$HOME/.vscode-server/extensions"
                 }
             )
 
-            $agentName = if ($PSVersionTable.Platform -eq "Win32NT") { "Inference.Service.Agent.exe" } else { "Inference.Service.Agent" }
+            $agentName = if ($PSVersionTable.Platform -notmatch "nix") { 
+                "Inference.Service.Agent.exe"
+            } else {
+                "Inference.Service.Agent"
+            }
 
             $AgentPath = $null
             foreach ($basePath in $possibleBasePaths) {
+                Write-Verbose "Checking path: $basePath"
                 $extensionPath = [System.IO.Directory]::GetDirectories($basePath, $extension)
                 if ($extensionPath) {
-                    $potentialPath = Join-Path $extensionPath[0] "bin" $agentName
+                    $potentialPath = Join-Path -Path $extensionPath[0] -ChildPath bin
+                    $potentialPath = Join-Path -Path $potentialPath -ChildPath $agentName
                     if (Test-Path $potentialPath) {
                         $AgentPath = $potentialPath
+                        Write-Verbose "Executable found at: $potentialPath"
                         break
                     }
                 }
             }
 
             if (-not $AgentPath) {
+                Write-Verbose "Executable not found, throwing error."
                 throw "Inference Service Agent not found. Please specify the path manually using the -Path parameter."
             }
         } else {
             $AgentPath = $Path
+            Write-Verbose "Using provided path: $Path"
         }
     }
     process {
-        $processName = "Inference.Service.Agent"
-        if (Get-Process -Name $processName -ErrorAction SilentlyContinue) {
-            Write-Warning "The AI Toolkit server is already running."
+        $inferenceAgentName = "Inference.Service.Agent"
+        $workspaceAgentName = "WorkspaceAutomation.Agent"
+        
+        Write-Verbose "Checking if the processes are already running."
+        if (Get-Process -Name $inferenceAgentName -ErrorAction SilentlyContinue) {
+            Write-Warning "The Inference Service Agent is already running."
+            return
+        }
+        if (Get-Process -Name $workspaceAgentName -ErrorAction SilentlyContinue) {
+            Write-Warning "The Workspace Automation Agent is already running."
             return
         }
 
         try {
-            if ($PSVersionTable.Platform -eq "Win32NT") {
-                Start-Process -FilePath $AgentPath -WindowStyle Hidden
-            } else {
-                # For Unix-like systems, we need to make sure the file is executable
-                chmod +x $AgentPath
-                Start-Process -FilePath $AgentPath
+            $binPath = Split-Path -Parent $AgentPath
+            $inferenceAgentPath = Join-Path $binPath $inferenceAgentName
+            $workspaceAgentPath = Join-Path $binPath $workspaceAgentName
+            
+            if (-not $ModelDirPath) {
+                $ModelDirPath = Join-Path $HOME ".aitk\models"
             }
-            Write-Host "AI Toolkit server started successfully."
+
+            $commonArgs = @(
+                "--Logging:LogLevel:Default=Debug"
+                "--urls", "$script:aitoolsBaseUrl"
+                "--OpenAIServiceSettings:ModelDirPath=$ModelDirPath"
+                "--OpenAIServiceSettings:UseChatCompletionStreamAlways=true"
+            )
+
+            Write-Verbose "Starting Inference Service Agent"
+            $null = Start-Process -FilePath $inferenceAgentPath -ArgumentList $commonArgs -WindowStyle Hidden
+            [pscustomobject]@{
+                ProcessName = "Inference.Service.Agent"
+                Status      = "WorkspaceAutomation.Agent"
+            }
+            
+            Write-Verbose "Starting Workspace Automation Agent"
+            $null = Start-Process -FilePath $workspaceAgentPath -ArgumentList "--Logging:LogLevel:Default=Debug" -WindowStyle Hidden
+            
+            [pscustomobject]@{
+                ProcessName = $aiprocess.ProcessName
+                Status      = "Started"
+            }
         } catch {
-            Write-Error "Failed to start AI Toolkit server: $_"
+            Write-Verbose "Failed to start the AI Toolkit servers."
+            throw $PSItem
         }
     }
 }

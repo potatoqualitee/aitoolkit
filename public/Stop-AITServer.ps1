@@ -17,18 +17,17 @@ This function works across Windows, macOS, and Linux platforms.
     [CmdletBinding()]
     param()
     process {
-        $processName = "Inference.Service.Agent"
-        $process = Get-Process | Where-Object { $_.ProcessName -eq $processName -or $_.ProcessName -eq $processName.Replace(".exe", "") }
-
-        if ($process) {
-            try {
-                Stop-Process -InputObject $process -Force
-                Write-Host "AI Toolkit server stopped successfully."
-            } catch {
-                Write-Error "Failed to stop AI Toolkit server: $_"
+        try {
+            $aiprocesses = Get-Process | Where-Object Path -match "extensions.*ai-studio"
+            foreach ($aiprocess in $aiprocesses) {
+                Stop-Process -Id $aiprocess.Id -Force
+                [pscustomobject]@{
+                    ProcessName = $aiprocess.ProcessName
+                    Status = "Stopped"
+                }
             }
-        } else {
-            Write-Warning "The AI Toolkit server is not currently running."
+        } catch {
+            Write-Error "Failed to stop AI Toolkit server: $PSItem"
         }
     }
 }

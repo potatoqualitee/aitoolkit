@@ -13,13 +13,15 @@ function Get-AITModel {
     #>
     [CmdletBinding()]
     param()
-
-    $endpoint = "$script:AIToolsBaseUrl/openai/models"
-
-    try {
-        $response = Invoke-RestMethod -Uri $endpoint -Method Get
-        $response | Select-Object -ExpandProperty data
-    } catch {
-        Write-Error "Failed to retrieve models from the AI Toolkit API. Error: $($_.Exception.Message)"
+    process {
+        try {
+            foreach ($model in (Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/models")) {
+                [PSCustomObject]@{
+                    Model = $model
+                }
+            }
+        } catch {
+            throw $PSItem
+        }
     }
 }

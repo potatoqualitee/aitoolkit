@@ -40,12 +40,12 @@ Import-Module -Name aitools
 
 2. Load a specific model:
    ```powershell
-   Mount-AITModel -Model "gpt-3.5-turbo"
+   Mount-AITModel -Model mistral-7b-v02-int4-cpu
    ```
 
 3. Unload a specific model:
    ```powershell
-   Dismount-AITModel -Model "gpt-3.5-turbo"
+   Dismount-AITModel -Model mistral-7b-v02-int4-cpu
    ```
 
 4. Retrieve the list of loaded models:
@@ -55,7 +55,7 @@ Import-Module -Name aitools
 
 5. Create a chat completion:
    ```powershell
-   Request-AITChatCompletion -Model "gpt-3.5-turbo" -Message "Hello, how are you?"
+   Request-AITChatCompletion -Model mistral-7b-v02-int4-cpu -Message "Hello, how are you?"
    ```
 
 6. Set the configuration:

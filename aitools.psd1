@@ -36,6 +36,7 @@
         'Dismount-AITModel',
         'Get-AITModel',
         'Get-AITMountedModel',
+        'Get-AITServer',
         'Mount-AITModel',
         'Request-AITChatCompletion',
         'Set-AITConfig',

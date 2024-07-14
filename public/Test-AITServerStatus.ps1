@@ -10,6 +10,9 @@ function Test-AITServerStatus {
     .PARAMETER ServerUrl
     The URL of the AI Toolkit server. Defaults to "http://localhost:5272".
 
+    .PARAMETER TimeoutSec
+    The timeout in seconds for the connection attempt. Defaults to 1 second.
+
     .EXAMPLE
     Test-AITServerStatus
 
@@ -23,15 +26,20 @@ function Test-AITServerStatus {
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
-        [string]$ServerUrl = "http://localhost:5272"
+        [string]$ServerUrl = "http://localhost:5272",
+        [int]$TimeoutSec = 1
     )
 
     try {
-        $null = Invoke-RestMethod -Uri "$ServerUrl/openai/models" -Method Get -ErrorAction Stop
+        $splat = @{
+            Uri         = "$ServerUrl/openai/models"
+            ErrorAction = "Stop"
+            TimeoutSec  = $TimeoutSec
+        }
+        $null = Invoke-RestMethod @splat
         return $true
     } catch {
-        Write-Error "Failed to connect to AI Toolkit server: $_"
+        Write-Verbose "Failed to connect to AI Toolkit server: $PSItem"
         return $false
     }
 }

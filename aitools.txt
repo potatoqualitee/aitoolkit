@@ -1,0 +1,702 @@
+function Dismount-AITModel {
+    <#
+    .SYNOPSIS
+    Unloads specific models from the AI Toolkit API.
+
+    .DESCRIPTION
+    The Dismount-AITModel command sends a GET request to the AI Toolkit API to unload specific models. This command can handle multiple models if provided in an array.
+
+    .PARAMETER Model
+    The names of the models to unload. Can be a single model name or an array of names.
+
+    .PARAMETER Force
+    Indicates whether to force the unloading of the model(s) even if they are in use.
+
+    .EXAMPLE
+    Dismount-AITModel -Model mistral-7b-v02-int4-cpu
+
+    This command unloads the mistral-7b-v02-int4-cpu model from the AI Toolkit API.
+
+    .EXAMPLE
+    Dismount-AITModel -Model mistral-7b-v02-int4-cpu, gpt-3.5-turbo -Force
+
+    This command forcefully unloads the mistral-7b-v02-int4-cpu and gpt-3.5-turbo models from the AI Toolkit API.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+        [string[]]$Model,
+        [switch]$Force
+    )
+    process {
+        foreach ($item in $Model) {
+            Write-Verbose "Unloading model $item..."
+            $endpoint = "$script:AIToolsBaseUrl/openai/unload/$item"
+
+            if ($Force) {
+                $endpoint += "?force=true"
+            }
+
+            try {
+                $splat = @{
+                    Activity = "Unloading Models"
+                    Status   = "Ubloading model $item"
+                }
+                Write-Progress @splat
+                Invoke-RestMethod -Uri $endpoint
+                if ($item -eq $script:mountedmodel) {
+                    $script:mountedmodel = $null
+                }
+            } catch {
+                throw $PSItem
+            }
+        }
+    }
+}
+function Get-AITModel {
+    <#
+    .SYNOPSIS
+    Retrieves the list of available models from the AI Toolkit API.
+
+    .DESCRIPTION
+    The Get-AITModel cmdlet sends a GET request to the AI Toolkit API to retrieve the list of available models.
+
+    .EXAMPLE
+    Get-AITModel
+
+    This command retrieves the list of available models from the AI Toolkit API.
+    #>
+    [CmdletBinding()]
+    param()
+    process {
+        try {
+            foreach ($model in (Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/models")) {
+                [PSCustomObject]@{
+                    Model = $model
+                }
+            }
+        } catch {
+            throw $PSItem
+        }
+    }
+}
+function Get-AITMountedModel {
+    <#
+    .SYNOPSIS
+    Retrieves the list of currently loaded models from the AI Toolkit API.
+
+    .DESCRIPTION
+    The Get-AITMountedModel cmdlet sends a GET request to the AI Toolkit API to retrieve the list of currently loaded models.
+
+    .EXAMPLE
+    Get-AITMountedModel
+
+    This command retrieves the list of currently loaded models from the AI Toolkit API.
+    #>
+    [CmdletBinding()]
+    param()
+    process {
+        try {
+            $loadedModels = Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/loadedmodels"
+            foreach ($model in $loadedModels) {
+                [PSCustomObject]@{
+                    Model = $model
+                }
+            }
+        } catch {
+            throw $PSItem
+        }
+    }
+}
+function Get-AITServer {
+    <#
+.SYNOPSIS
+Gets the AI Toolkit server processes.
+
+.DESCRIPTION
+The Get-AITServer function retrieves the running Inference Service Agent processes for the AI Toolkit.
+
+.EXAMPLE
+Get-AITServer
+
+This example gets the running AI Toolkit server processes.
+
+.NOTES
+This function works across Windows, macOS, and Linux platforms.
+#>
+    [CmdletBinding()]
+    param()
+    process {
+        try {
+            $aiprocesses = Get-Process | Where-Object Path -match "extensions.*ai-studio"
+            foreach ($aiprocess in $aiprocesses) {
+                [pscustomobject]@{
+                    ProcessName = $aiprocess.ProcessName
+                    Id          = $aiprocess.Id
+                    Path        = $aiprocess.Path
+                    CPU         = $aiprocess.CPU
+                    Memory      = $aiprocess.WorkingSet64 / 1MB  # Convert to MB
+                    StartTime   = $aiprocess.StartTime
+                }
+            }
+
+            if (-not $aiprocesses) {
+                Write-Host "No AI Toolkit server processes found."
+            }
+        } catch {
+            Write-Error "Failed to get AI Toolkit server processes: $PSItem"
+        }
+    }
+}
+function Mount-AITModel {
+    <#
+    .SYNOPSIS
+    Loads specific models in the AI Toolkit API.
+
+    .DESCRIPTION
+    The Mount-AITModel command sends a GET request to the AI Toolkit API to load specific models. This command can handle multiple models if provided in an array.
+
+    .PARAMETER Model
+    The names of the models to load. Can be a single model name or an array of names.
+
+    .PARAMETER Unload
+    Indicates whether to unload a model if any are already loaded before loading new ones.
+
+    .EXAMPLE
+    Mount-AITModel -Model mistral-7b-v02-int4-cpu
+
+    This command loads the mistral-7b-v02-int4-cpu model in the AI Toolkit API.
+
+    .EXAMPLE
+    Mount-AITModel -Model mistral-7b-v02-int4-cpu, gpt-3.5-turbo -Unload
+
+    This command unloads any currently loaded models and then loads the mistral-7b-v02-int4-cpu and gpt-3.5-turbo models in the AI Toolkit API.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+        [string[]]$Model,
+        [switch]$Unload
+    )
+    process {
+        foreach ($item in $Model) {
+            $endpoint = "$script:AIToolsBaseUrl/openai/load/$item"
+
+            if ($Unload) {
+                $endpoint += "?unload=true"
+            }
+
+            try {
+                $splat = @{
+                    Activity =  "Loading Models"
+                    Status = "Loading model $item"
+                }
+                Write-Progress @splat
+                Invoke-RestMethod -Uri $endpoint
+                $script:mountedmodel = $item
+            } catch {
+                throw $PSItem
+            }
+        }
+    }
+}
+function Request-AITChatCompletion {
+    <#
+    .SYNOPSIS
+    Creates a chat completion using the specified model and input in the AI Toolkit API.
+
+    .DESCRIPTION
+    The Request-AITChatCompletion cmdlet sends a POST request to the AI Toolkit API to create a chat completion using the specified model and input. It includes various parameters with defaults to fine-tune the AI's response.
+
+    .PARAMETER Model
+    The name of the model to use for the chat completion.
+
+    .PARAMETER Message
+    The input message for the chat completion.
+
+    .PARAMETER Temperature
+    The sampling temperature for generating the completion. Higher values result in more random outputs. Default is 0.7.
+
+    .PARAMETER MaxToken
+    The maximum number of tokens to generate in the completion. Default is 100.
+
+    .PARAMETER TopP
+    The cumulative probability threshold for token sampling. Default is 1.0.
+
+    .PARAMETER FrequencyPenalty
+    The penalty factor for repeated tokens. Default is 0.0.
+
+    .PARAMETER PresencePenalty
+    The penalty factor for new tokens not present in the input. Default is 0.0.
+
+    .PARAMETER NoStream
+    Indicates whether to disable streaming of the response. By default, streaming is enabled.
+
+    .PARAMETER Raw
+    Returns the raw API response instead of parsed content. Raw is only for non-streaming requests.
+
+    .EXAMPLE
+    Request-AITChatCompletion -Model mistral-7b-v02-int4-cpu -Message "Hello, how are you?"
+
+    This command creates a chat completion using the mistral-7b-v02-int4-cpu model with the input message "Hello, how are you?" using default parameter settings.
+    #>
+    [CmdletBinding()]
+    param(
+        [string]$Model = $script:mountedmodel,
+        [Parameter(Mandatory)]
+        [string]$Message,
+        [double]$Temperature = 0.7,
+        [int]$MaxToken = 100,
+        [double]$TopP = 1.0,
+        [double]$FrequencyPenalty = 0.0,
+        [double]$PresencePenalty = 0.0,
+        [switch]$NoStream,
+        [switch]$Raw
+    )
+    process {
+        Write-Verbose "Starting Request-AITChatCompletion"
+
+        if (-not $Model) {
+            Write-Error "No model is currently loaded. Use the Mount-AITModel cmdlet to load a model."
+            return
+        }
+
+        Write-Verbose "Using model: $Model"
+
+        $endpoint = "$script:aitoolsBaseUrl/v1/chat/completions"
+        Write-Verbose "Endpoint: $endpoint"
+
+        $requestBody = @{
+            model             = $Model
+            messages          = @(
+                @{
+                    role    = "user"
+                    content = $Message
+                }
+            )
+            temperature       = $Temperature
+            max_tokens        = $MaxToken
+            top_p             = $TopP
+            frequency_penalty = $FrequencyPenalty
+            presence_penalty  = $PresencePenalty
+            stream            = (-not $NoStream)
+        }
+
+        try {
+            $splat = @{
+                Uri         = $endpoint
+                Method      = "POST"
+                Body        = ($requestBody | ConvertTo-Json)
+                ContentType = "application/json"
+            }
+
+            Write-Verbose "Sending request to AI Toolkit API"
+
+            if ($NoStream) {
+                Write-Progress -Activity "Requesting AI Chat Completion" -Status "Sending request..."
+                $response = Invoke-RestMethod @splat
+                Write-Progress -Activity "Requesting AI Chat Completion" -Status "Complete"
+
+                if ($Raw) {
+                    return $response
+                } else {
+                    # This is a simplified parsing. Adjust based on your actual response structure.
+                    if ($response.choices -and $response.choices.Count -gt 0) {
+                        return $response.choices[0].message.content
+                    } else {
+                        Write-Warning "Unexpected response structure"
+                        return $response
+                    }
+                }
+            } else {
+                $responseStream = Invoke-WebRequest @splat -UseBasicParsing -ErrorAction Stop -TimeoutSec 0
+                $reader = [System.IO.StreamReader]::new($responseStream.RawContentStream)
+                $responseBuilder = [System.Text.StringBuilder]::new()
+
+                while (-not $reader.EndOfStream) {
+                    $line = $reader.ReadLine()
+                    if ($line.StartsWith("data: ")) {
+                        $data = $line.Substring(6)
+                        if ($data -eq "[DONE]") {
+                            break
+                        }
+                        
+                        try {
+                            $jsonData = $data | ConvertFrom-Json
+                            $content = $jsonData.choices[0].delta.content
+                            if ($content) {
+                                Write-Host $content -NoNewline
+                                $null = $responseBuilder.Append($content)
+                            }
+                        } catch {
+                            Write-Error "Failed to parse JSON: $_"
+                        }
+                    }
+                }
+                return $responseBuilder.ToString()
+            }
+        } catch {
+            throw $PSItem
+        } finally {
+            Write-Progress -Activity "Requesting AI Chat Completion" -Completed
+        }
+    }
+}
+function Set-AITConfig {
+    <#
+    .SYNOPSIS
+    Sets the configuration values for the aitools module.
+
+    .DESCRIPTION
+    The Set-AITConfig cmdlet sets the configuration values for the aitools module, such as the base URL for the AI Toolkit API.
+
+    .PARAMETER BaseUrl
+    The base URL of the AI Toolkit API.
+
+    .PARAMETER Model
+    The name of the model to set as default.
+
+    .EXAMPLE
+    Set-AITConfig -BaseUrl http://localhost:8080
+
+    This command sets the base URL for the AI Toolkit API to "http://localhost:8080".
+
+    .EXAMPLE
+    Set-AITConfig -Model mistral-7b-v02-int4-cpu
+
+    This command sets the default model to mistral-7b-v02-int4-cpu.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string]$BaseUrl,
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string]$Model
+    )
+
+    if ($BaseUrl) {
+        $script:aitoolsBaseUrl = $BaseUrl
+    }
+
+    if ($Model) {
+        $script:mountedmodel = $Model
+    }
+
+    [pscustomobject]@{
+        BaseUrl = $script:aitoolsBaseUrl
+        Model = $script:mountedmodel
+    }
+}
+function Start-AITServer {
+<#
+    .SYNOPSIS
+    Starts the AI Toolkit server.
+
+    .DESCRIPTION
+    The Start-AITServer function starts the Inference Service Agent for the AI Toolkit. It attempts to locate the agent executable automatically, but also allows for a custom path to be specified.
+
+    .PARAMETER Path
+    Specifies the custom path to the Inference Service Agent executable. If not provided, the function will attempt to locate it automatically.
+
+    .PARAMETER ModelDirPath
+    Specifies the custom model directory path. If not provided, the function will use the default path.
+
+    .EXAMPLE
+    Start-AITServer
+
+    This example starts the AI Toolkit server using the default path.
+
+    .EXAMPLE
+    Start-AITServer -Path "/custom/path/to/Inference.Service.Agent"
+
+    This example starts the AI Toolkit server using a custom path.
+
+    .NOTES
+    This function works across Windows, macOS, and Linux platforms.
+#>
+    [CmdletBinding()]
+    param (
+        [Parameter(HelpMessage = "Custom path to the Inference Service Agent executable")]
+        [string]$Path,
+        [Parameter(HelpMessage = "Custom model directory path")]
+        [string]$ModelDirPath
+    )
+    begin {
+        Write-Verbose "Initializing Start-AITServer."
+        if (-not $Path) {
+            Write-Verbose "No custom path provided, attempting to locate the executable automatically."
+            $extension = "ms-windows-ai-studio.windows-ai-studio-*"
+            $possibleBasePaths = @(
+                if ($PSVersionTable.Platform -notmatch "nix") {
+                    "$env:USERPROFILE\.vscode-insiders\extensions"
+                    "$env:USERPROFILE\.vscode\extensions"
+                } else {
+                    "$HOME/.vscode-insiders/extensions"
+                    "$HOME/.vscode/extensions"
+                }
+            )
+
+            $agentName = if ($PSVersionTable.Platform -notmatch "nix") { 
+                "Inference.Service.Agent.exe"
+            } else {
+                "Inference.Service.Agent"
+            }
+
+            $AgentPath = $null
+            foreach ($basePath in $possibleBasePaths) {
+                Write-Verbose "Checking path: $basePath"
+                $extensionPath = [System.IO.Directory]::GetDirectories($basePath, $extension)
+                if ($extensionPath) {
+                    $potentialPath = Join-Path -Path $extensionPath[0] -ChildPath bin
+                    $potentialPath = Join-Path -Path $potentialPath -ChildPath $agentName
+                    if (Test-Path $potentialPath) {
+                        $AgentPath = $potentialPath
+                        Write-Verbose "Executable found at: $potentialPath"
+                        break
+                    }
+                }
+            }
+
+            if (-not $AgentPath) {
+                Write-Verbose "Executable not found, throwing error."
+                throw "Inference Service Agent not found. Please specify the path manually using the -Path parameter."
+            }
+        } else {
+            $AgentPath = $Path
+            Write-Verbose "Using provided path: $Path"
+        }
+    }
+    process {
+        $inferenceAgentName = "Inference.Service.Agent"
+        $workspaceAgentName = "WorkspaceAutomation.Agent"
+        
+        Write-Verbose "Checking if the processes are already running."
+        if (Get-Process -Name $inferenceAgentName -ErrorAction SilentlyContinue) {
+            Write-Warning "The Inference Service Agent is already running."
+            return
+        }
+        if (Get-Process -Name $workspaceAgentName -ErrorAction SilentlyContinue) {
+            Write-Warning "The Workspace Automation Agent is already running."
+            return
+        }
+
+        try {
+            $binPath = Split-Path -Parent $AgentPath
+            $inferenceAgentPath = Join-Path $binPath $inferenceAgentName
+            $workspaceAgentPath = Join-Path $binPath $workspaceAgentName
+            
+            if (-not $ModelDirPath) {
+                $ModelDirPath = Join-Path $HOME ".aitk\models"
+            }
+
+            $commonArgs = @(
+                "--Logging:LogLevel:Default=Debug"
+                "--urls", "$script:aitoolsBaseUrl"
+                "--OpenAIServiceSettings:ModelDirPath=$ModelDirPath"
+                "--OpenAIServiceSettings:UseChatCompletionStreamAlways=true"
+            )
+
+            Write-Verbose "Starting Inference Service Agent"
+            $null = Start-Process -FilePath $inferenceAgentPath -ArgumentList $commonArgs -WindowStyle Hidden
+            [pscustomobject]@{
+                ProcessName = "Inference.Service.Agent"
+                Status      = "WorkspaceAutomation.Agent"
+            }
+            
+            Write-Verbose "Starting Workspace Automation Agent"
+            $null = Start-Process -FilePath $workspaceAgentPath -ArgumentList "--Logging:LogLevel:Default=Debug" -WindowStyle Hidden
+            
+            [pscustomobject]@{
+                ProcessName = $aiprocess.ProcessName
+                Status      = "Started"
+            }
+        } catch {
+            Write-Verbose "Failed to start the AI Toolkit servers."
+            throw $PSItem
+        }
+    }
+}
+function Stop-AITServer {
+<#
+.SYNOPSIS
+Stops the AI Toolkit server.
+
+.DESCRIPTION
+The Stop-AITServer function stops the running Inference Service Agent for the AI Toolkit.
+
+.EXAMPLE
+Stop-AITServer
+
+This example stops the running AI Toolkit server.
+
+.NOTES
+This function works across Windows, macOS, and Linux platforms.
+#>
+    [CmdletBinding()]
+    param()
+    process {
+        try {
+            $aiprocesses = Get-Process | Where-Object Path -match "extensions.*ai-studio"
+            foreach ($aiprocess in $aiprocesses) {
+                Stop-Process -Id $aiprocess.Id -Force
+                [pscustomobject]@{
+                    ProcessName = $aiprocess.ProcessName
+                    Status = "Stopped"
+                }
+            }
+        } catch {
+            Write-Error "Failed to stop AI Toolkit server: $PSItem"
+        }
+    }
+}
+function Test-AITServerStatus {
+    <#
+    .SYNOPSIS
+    Tests the connection to the AI Toolkit server.
+
+    .DESCRIPTION
+    This function attempts to connect to the AI Toolkit server and retrieve the list of available models.
+    It serves as a quick check to ensure the server is running and responsive.
+
+    .PARAMETER ServerUrl
+    The URL of the AI Toolkit server. Defaults to "http://localhost:5272".
+
+    .PARAMETER TimeoutSec
+    The timeout in seconds for the connection attempt. Defaults to 1 second.
+
+    .EXAMPLE
+    Test-AITServerStatus
+
+    This example tests the connection to the default server URL.
+
+    .EXAMPLE
+    Test-AITServerStatus -ServerUrl "http://localhost:8080"
+
+    This example tests the connection to a custom server URL.
+    #>
+
+    [CmdletBinding()]
+    param(
+        [string]$ServerUrl = "http://localhost:5272",
+        [int]$TimeoutSec = 1
+    )
+
+    try {
+        $splat = @{
+            Uri         = "$ServerUrl/openai/models"
+            ErrorAction = "Stop"
+            TimeoutSec  = $TimeoutSec
+        }
+        $null = Invoke-RestMethod @splat
+        return $true
+    } catch {
+        Write-Verbose "Failed to connect to AI Toolkit server: $PSItem"
+        return $false
+    }
+}
+#
+# Module manifest for module 'aitools'
+#
+# Generated by: Chrissy LeMaire
+#
+# Generated on: 4/7/2024
+#
+@{
+    # Version number of this module.
+    ModuleVersion     = '0.0.2'
+
+    RootModule        = 'aitools.psm1'
+
+    # ID used to uniquely identify this module
+    GUID              = 'c90f5001-c492-4fbe-8ab3-f03599951bd0'
+
+    # Author of this module
+    Author            = 'Chrissy LeMaire'
+
+    # Company or vendor of this module
+    CompanyName       = 'cl'
+
+    # Copyright statement for this module
+    Copyright         = '2024'
+
+    # Description of the functionality provided by this module
+    Description       = 'PowerShell module for interacting with the AI Toolkit API'
+
+    # Minimum version of the Windows PowerShell engine required by this module
+    PowerShellVersion = '5.1'
+
+    # Modules that must be imported into the global environment prior to importing this module
+    RequiredModules   = @()
+    
+    FunctionsToExport = @(
+        'Dismount-AITModel',
+        'Get-AITModel',
+        'Get-AITMountedModel',
+        'Get-AITServer',
+        'Mount-AITModel',
+        'Request-AITChatCompletion',
+        'Set-AITConfig',
+        'Start-AITServer',
+        'Stop-AITServer',
+        'Test-AITServerStatus'
+    )
+    AliasesToExport   = @(
+        'Load-AITModel',
+        'Unload-AITModel'
+    )
+
+    PrivateData       = @{
+        # PSData is module packaging and gallery metadata embedded in PrivateData
+        # It's for rebuilding PowerShellGet (and PoshCode) NuGet-style packages
+        # We had to do this because it's the only place we're allowed to extend the manifest
+        # https://connect.microsoft.com/PowerShell/feedback/details/421837
+        PSData = @{
+            # The primary categorization of this module (from the TechNet Gallery tech tree).
+            Category     = "AI"
+
+            # Keyword tags to help users find this module via navigations and search.
+            Tags         = @('ai', 'chatgpt', 'openai', 'api', 'ml')
+
+            # The web address of an icon which can be used in galleries to represent this module
+            IconUri      = ""
+
+            # Indicates this is a pre-release/testing version of the module.
+            IsPrerelease = 'False'
+        }
+    }
+}
+
+$script:PSModuleRoot = $script:ModuleRoot = $PSScriptRoot
+$script:aitoolsBaseUrl = "http://localhost:5272"
+
+function Import-ModuleFile {
+    [CmdletBinding()]
+    Param (
+        [string]$Path
+    )
+    if ($doDotSource) { . $Path }
+    else { $ExecutionContext.InvokeCommand.InvokeScript($false, ([scriptblock]::Create([io.file]::ReadAllText($Path))), $null, $null) }
+}
+
+# Import all internal functions
+foreach ($function in (Get-ChildItem "$ModuleRoot\private\" -Filter "*.ps1" -Recurse -ErrorAction Ignore)) {
+    . Import-ModuleFile -Path $function.FullName
+}
+
+# Import all public functions
+foreach ($function in (Get-ChildItem "$ModuleRoot\public" -Filter "*.ps1" -Recurse -ErrorAction Ignore)) {
+    . Import-ModuleFile -Path $function.FullName
+}
+
+try {
+    if (-not $PSDefaultParameterValues['Invoke-RestMethod:TimeoutSec']) {
+        $removetimeout = $true
+        $PSDefaultParameterValues['Invoke-RestMethod:TimeoutSec'] = 1
+    }
+    $script:mountedmodel = Get-AITMountedModel -ErrorAction Stop | Select-Object -Last 1 -ExpandProperty Model
+    if ($removetimeout) {
+        $null = $PSDefaultParameterValues.Remove('Invoke-RestMethod:TimeoutSec')
+    }
+} catch {
+    # don't care
+}

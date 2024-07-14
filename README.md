@@ -1,76 +1,75 @@
-# aitools
+# aitools PowerShell Module
 
-PowerShell module for interacting with the AI Toolkit API
+## Overview
 
-## Description
+The aitools PowerShell module provides a command-line interface for interacting with local AI models through Microsoft's AI Toolkit for Visual Studio Code.
 
-The aitools module provides a set of PowerShell functions to interact with the AI Toolkit API. It allows you to retrieve available models, load and unload models, retrieve loaded models, create chat completions, and configure the API settings.
+## Background: AI Toolkit for Visual Studio Code
 
-## Installation
+The [AI Toolkit for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ms-windows-ai-studio.windows-ai-studio) is an extension that facilitates working with AI models locally. Key features include:
 
-You can install the aitools module from the PowerShell Gallery using the following command:
+- Browsing and downloading models from catalogs like Azure AI Studio and Hugging Face
+- Local model inference
+- Model fine-tuning capabilities
 
-```powershell
-Install-Module -Name aitools
-```
+Under the hood, the AI Toolkit uses the Kestrel web server to provide a local API endpoint, which this PowerShell module interacts with.
 
-## Usage
+![AI Toolkit Interface](aitk.png)
 
-To use the aitools module, you need to import it into your PowerShell session:
+## Introduction
 
-```powershell
-Import-Module -Name aitools
-```
+This PowerShell module wraps functionality provided by the AI Toolkit for Visual Studio Code, allowing users to:
 
-### Available Functions
+- Start and stop the AI Toolkit server
+- Load and unload AI models
+- Interact with loaded models for text generation
+- Manage model configurations
 
-- `Get-AITModel`: Retrieves the list of available models from the AI Toolkit API.
-- `Mount-AITModel`: Loads a specific model in the AI Toolkit API.
-- `Dismount-AITModel`: Unloads a specific model from the AI Toolkit API.
-- `Get-AITMountedModel`: Retrieves the list of currently loaded models from the AI Toolkit API.
-- `Request-AITChatCompletion`: Creates a chat completion using the specified model and input in the AI Toolkit API.
-- `Set-AITConfig`: Sets the configuration values for the aitools module.
+It's designed to make AI model interactions accessible to PowerShell users, whether for experimentation, learning, or integration into existing PowerShell workflows.
 
-### Examples
+## Getting Started
 
-1. Retrieve the list of available models:
+1. Install the AI Toolkit for Visual Studio Code extension
+2. Install this PowerShell module:
    ```powershell
-   Get-AITModel
+   Install-Module -Name aitools
+   ```
+3. Start the AI Toolkit server:
+   ```powershell
+   Start-AITServer
+   ```
+4. Load a model:
+   ```powershell
+   Mount-AITModel -Model "model-name"
+   ```
+5. Generate text:
+   ```powershell
+   Request-AITChatCompletion -Message "Your prompt here"
    ```
 
-2. Load a specific model:
-   ```powershell
-   Mount-AITModel -Model mistral-7b-v02-int4-cpu
-   ```
+## Key Concepts
 
-3. Unload a specific model:
-   ```powershell
-   Dismount-AITModel -Model mistral-7b-v02-int4-cpu
-   ```
+### Loading and Unloading Models
 
-4. Retrieve the list of loaded models:
-   ```powershell
-   Get-AITMountedModel
-   ```
+In the context of this module, "loading" a model means bringing it into memory for use, while "unloading" removes it from memory. This allows for efficient resource management, especially when working with multiple large models.
 
-5. Create a chat completion:
-   ```powershell
-   Request-AITChatCompletion -Model mistral-7b-v02-int4-cpu -Message "Hello, how are you?"
-   ```
+### Local API
 
-6. Set the configuration:
-   ```powershell
-   Set-AITConfig -BaseUrl "http://localhost:8080"
-   ```
+The AI Toolkit provides a local REST API that follows the OpenAI chat completions format. This PowerShell module abstracts interactions with this API, making it easier to use from the command line or in scripts.
 
-## Configuration
+## Module Commands
 
-The aitools module uses the `$script:aitoolsBaseUrl` variable to store the base URL of the AI Toolkit API. You can set this value using the `Set-AITConfig` cmdlet. By default, the base URL is set to `"http://localhost:5272"`.
+- `Dismount-AITModel`: Unloads a specified model
+- `Get-AITModel`: Lists available models
+- `Get-AITMountedModel`: Shows currently loaded models
+- `Get-AITServer`: Retrieves information about the AI Toolkit server processes
+- `Mount-AITModel`: Loads a specified model
+- `Request-AITChatCompletion`: Generates text using the loaded model
+- `Set-AITConfig`: Configures settings for the aitools module
+- `Start-AITServer`: Initiates the AI Toolkit server
+- `Stop-AITServer`: Stops the AI Toolkit server
+- `Test-AITServerStatus`: Checks the status of the AI Toolkit server
 
-## Contributing
+## Todo
 
-Contributions to the aitools module are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request on the module's GitHub repository.
-
-## License
-
-The aitools module is released under the [MIT License](LICENSE).
+- Create commands to explore and download models from catalogs

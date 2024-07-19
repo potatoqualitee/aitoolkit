@@ -1,6 +1,6 @@
 
 $script:PSModuleRoot = $script:ModuleRoot = $PSScriptRoot
-$script:aitoolsBaseUrl = "http://localhost:5272"
+$script:aitoolkitBaseUrl = "http://localhost:5272"
 
 function Import-ModuleFile {
     [CmdletBinding()]

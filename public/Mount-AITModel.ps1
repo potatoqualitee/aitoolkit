@@ -30,7 +30,7 @@ function Mount-AITModel {
     )
     process {
         foreach ($item in $Model) {
-            $endpoint = "$script:AIToolsBaseUrl/openai/load/$item"
+            $endpoint = "$script:aitoolkitBaseUrl/openai/load/$item"
 
             if ($Unload) {
                 $endpoint += "?unload=true"

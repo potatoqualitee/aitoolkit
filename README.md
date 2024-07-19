@@ -1,8 +1,8 @@
-# aitools PowerShell Module
+# aitoolkit PowerShell Module
 
 ## Overview
 
-The aitools PowerShell module provides a command-line interface for interacting with local AI models through Microsoft's AI Toolkit for Visual Studio Code.
+The aitoolkit PowerShell module provides a command-line interface for interacting with local AI models through Microsoft's AI Toolkit for Visual Studio Code.
 
 ## Background: AI Toolkit for Visual Studio Code
 
@@ -32,7 +32,7 @@ It's designed to make AI model interactions accessible to PowerShell users, whet
 1. Install the AI Toolkit for Visual Studio Code extension
 2. Install this PowerShell module:
    ```powershell
-   Install-Module -Name aitools
+   Install-Module -Name aitoolkit
    ```
 3. Start the AI Toolkit server:
    ```powershell
@@ -65,7 +65,7 @@ The AI Toolkit provides a local REST API that follows the OpenAI chat completion
 - `Get-AITServer`: Retrieves information about the AI Toolkit server processes
 - `Mount-AITModel`: Loads a specified model
 - `Request-AITChatCompletion`: Generates text using the loaded model
-- `Set-AITConfig`: Configures settings for the aitools module
+- `Set-AITConfig`: Configures settings for the aitoolkit module
 - `Start-AITServer`: Initiates the AI Toolkit server
 - `Stop-AITServer`: Stops the AI Toolkit server
 - `Test-AITServerStatus`: Checks the status of the AI Toolkit server

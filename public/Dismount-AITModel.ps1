@@ -31,7 +31,7 @@ function Dismount-AITModel {
     process {
         foreach ($item in $Model) {
             Write-Verbose "Unloading model $item..."
-            $endpoint = "$script:AIToolsBaseUrl/openai/unload/$item"
+            $endpoint = "$script:aitoolkitBaseUrl/openai/unload/$item"
 
             if ($Force) {
                 $endpoint += "?force=true"

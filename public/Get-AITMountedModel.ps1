@@ -15,7 +15,7 @@ function Get-AITMountedModel {
     param()
     process {
         try {
-            $loadedModels = Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/loadedmodels"
+            $loadedModels = Invoke-RestMethod -Uri "$script:aitoolkitBaseUrl/openai/loadedmodels"
             foreach ($model in $loadedModels) {
                 [PSCustomObject]@{
                     Model = $model

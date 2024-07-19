@@ -1,10 +1,10 @@
 function Set-AITConfig {
     <#
     .SYNOPSIS
-    Sets the configuration values for the aitools module.
+    Sets the configuration values for the aitoolkit module.
 
     .DESCRIPTION
-    The Set-AITConfig cmdlet sets the configuration values for the aitools module, such as the base URL for the AI Toolkit API.
+    The Set-AITConfig cmdlet sets the configuration values for the aitoolkit module, such as the base URL for the AI Toolkit API.
 
     .PARAMETER BaseUrl
     The base URL of the AI Toolkit API.
@@ -31,7 +31,7 @@ function Set-AITConfig {
     )
 
     if ($BaseUrl) {
-        $script:aitoolsBaseUrl = $BaseUrl
+        $script:aitoolkitBaseUrl = $BaseUrl
     }
 
     if ($Model) {
@@ -39,7 +39,7 @@ function Set-AITConfig {
     }
 
     [pscustomobject]@{
-        BaseUrl = $script:aitoolsBaseUrl
+        BaseUrl = $script:aitoolkitBaseUrl
         Model = $script:mountedmodel
     }
 }

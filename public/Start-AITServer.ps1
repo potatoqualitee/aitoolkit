@@ -102,7 +102,7 @@ function Start-AITServer {
 
             $commonArgs = @(
                 "--Logging:LogLevel:Default=Debug"
-                "--urls", "$script:aitoolsBaseUrl"
+                "--urls", "$script:aitoolkitBaseUrl"
                 "--OpenAIServiceSettings:ModelDirPath=$ModelDirPath"
                 "--OpenAIServiceSettings:UseChatCompletionStreamAlways=true"
             )

@@ -15,7 +15,7 @@ function Get-AITModel {
     param()
     process {
         try {
-            foreach ($model in (Invoke-RestMethod -Uri "$script:AIToolsBaseUrl/openai/models")) {
+            foreach ($model in (Invoke-RestMethod -Uri "$script:aitoolkitBaseUrl/openai/models")) {
                 [PSCustomObject]@{
                     Model = $model
                 }

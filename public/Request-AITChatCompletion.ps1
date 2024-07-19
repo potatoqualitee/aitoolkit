@@ -61,7 +61,7 @@ function Request-AITChatCompletion {
 
         Write-Verbose "Using model: $Model"
 
-        $endpoint = "$script:aitoolsBaseUrl/v1/chat/completions"
+        $endpoint = "$script:aitoolkitBaseUrl/v1/chat/completions"
         Write-Verbose "Endpoint: $endpoint"
 
         $requestBody = @{

@@ -18,8 +18,10 @@ This function works across Windows, macOS, and Linux platforms.
     param()
     process {
         try {
-            $aiprocesses = Get-Process | Where-Object Path -match "extensions.*ai-studio"
+            $pattern = "Inference\.Service\.Agent|WorkspaceAutomation\.Agent"
+            $aiprocesses = Get-Process | Where-Object Path -match $pattern
             foreach ($aiprocess in $aiprocesses) {
+                Write-Verbose "Stopping $($aiprocess.ProcessName) process with ID $($aiprocess.Id)"
                 Stop-Process -Id $aiprocess.Id -Force
                 [pscustomobject]@{
                     ProcessName = $aiprocess.ProcessName

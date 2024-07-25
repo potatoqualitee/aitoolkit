@@ -9,7 +9,7 @@ function Start-AITServer {
     .PARAMETER Path
     Specifies the custom path to the Inference Service Agent executable. If not provided, the function will attempt to locate it automatically.
 
-    .PARAMETER ModelDirPath
+    .PARAMETER ModelsPath
     Specifies the custom model directory path. If not provided, the function will use the default path.
 
     .EXAMPLE
@@ -30,7 +30,8 @@ function Start-AITServer {
         [Parameter(HelpMessage = "Custom path to the Inference Service Agent executable")]
         [string]$Path,
         [Parameter(HelpMessage = "Custom model directory path")]
-        [string]$ModelDirPath
+        [string]$ModelsPath,
+        [switch]$NoStream
     )
     begin {
         Write-Verbose "Initializing Start-AITServer."
@@ -47,7 +48,7 @@ function Start-AITServer {
                 }
             )
 
-            $agentName = if ($PSVersionTable.Platform -notmatch "nix") { 
+            $agentName = if ($PSVersionTable.Platform -notmatch "nix") {
                 "Inference.Service.Agent.exe"
             } else {
                 "Inference.Service.Agent"
@@ -80,12 +81,13 @@ function Start-AITServer {
     process {
         $inferenceAgentName = "Inference.Service.Agent"
         $workspaceAgentName = "WorkspaceAutomation.Agent"
-        
+
         Write-Verbose "Checking if the processes are already running."
         if (Get-Process -Name $inferenceAgentName -ErrorAction SilentlyContinue) {
             Write-Warning "The Inference Service Agent is already running."
             return
         }
+
         if (Get-Process -Name $workspaceAgentName -ErrorAction SilentlyContinue) {
             Write-Warning "The Workspace Automation Agent is already running."
             return
@@ -95,31 +97,61 @@ function Start-AITServer {
             $binPath = Split-Path -Parent $AgentPath
             $inferenceAgentPath = Join-Path $binPath $inferenceAgentName
             $workspaceAgentPath = Join-Path $binPath $workspaceAgentName
-            
-            if (-not $ModelDirPath) {
-                $ModelDirPath = Join-Path $HOME ".aitk\models"
+
+            if (-not $ModelsPath) {
+                $ModelsPath = Join-Path $HOME ".aitk\models"
             }
+
+            $usestream = (-not $NoStream).ToString().ToLower()
 
             $commonArgs = @(
                 "--Logging:LogLevel:Default=Debug"
                 "--urls", "$script:aitoolkitBaseUrl"
-                "--OpenAIServiceSettings:ModelDirPath=$ModelDirPath"
-                "--OpenAIServiceSettings:UseChatCompletionStreamAlways=true"
+                "--OpenAIServiceSettings:ModelDirPath=$ModelsPath"
+                "--OpenAIServiceSettings:UseChatCompletionStreamAlways=$usestream"
             )
 
-            Write-Verbose "Starting Inference Service Agent"
-            $null = Start-Process -FilePath $inferenceAgentPath -ArgumentList $commonArgs -WindowStyle Hidden
-            [pscustomobject]@{
-                ProcessName = "Inference.Service.Agent"
-                Status      = "WorkspaceAutomation.Agent"
+            Write-Verbose "Starting Inference Service Agent using args: $commonArgs"
+            try {
+                $splat = @{
+                    FilePath     = $inferenceAgentPath
+                    ArgumentList = $commonArgs
+                    WindowStyle  = "Hidden"
+                    ErrorAction  = "Stop"
+                }
+                $null = Start-Process @splat
+
+                [pscustomobject]@{
+                    ProcessName = "Inference.Service.Agent"
+                    Status      = "Started"
+                }
+            } catch {
+                [pscustomobject]@{
+                    ProcessName = "Inference.Service.Agent"
+                    Status      = "Failed: $PSItem"
+                }
             }
-            
+
+
             Write-Verbose "Starting Workspace Automation Agent"
-            $null = Start-Process -FilePath $workspaceAgentPath -ArgumentList "--Logging:LogLevel:Default=Debug" -WindowStyle Hidden
-            
-            [pscustomobject]@{
-                ProcessName = $aiprocess.ProcessName
-                Status      = "Started"
+            try {
+                $splat = @{
+                    FilePath     = $workspaceAgentPath
+                    ArgumentList = "--Logging:LogLevel:Default=Debug"
+                    WindowStyle  = "Hidden"
+                    ErrorAction  = "Stop"
+                }
+                $null = Start-Process @splat
+
+                [pscustomobject]@{
+                    ProcessName = "WorkspaceAutomation.Agent"
+                    Status      = "Started"
+                }
+            } catch {
+                [pscustomobject]@{
+                    ProcessName = "WorkspaceAutomation.Agent"
+                    Status      = "Failed: $PSItem"
+                }
             }
         } catch {
             Write-Verbose "Failed to start the AI Toolkit servers."

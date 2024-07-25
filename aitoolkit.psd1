@@ -12,7 +12,7 @@
     RootModule        = 'aitoolkit.psm1'
 
     # ID used to uniquely identify this module
-    GUID              = '010b87f9-2fd6-48ac-a30d-4dae4160e9cb'
+    GUID              = 'be7e6a35-00ca-4d93-8f51-1cb47ab19dc6'
 
     # Author of this module
     Author            = 'Chrissy LeMaire'
@@ -31,7 +31,7 @@
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules   = @()
-    
+
     FunctionsToExport = @(
         'Dismount-AITModel',
         'Get-AITModel',
@@ -40,8 +40,8 @@
         'Mount-AITModel',
         'Request-AITChatCompletion',
         'Set-AITConfig',
-        'Start-AITServer',
-        'Stop-AITServer',
+        #'Start-AITServer',
+        #'Stop-AITServer',
         'Test-AITServerStatus'
     )
     AliasesToExport   = @(

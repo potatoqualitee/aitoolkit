@@ -31,6 +31,7 @@ function Mount-AITModel {
     process {
         foreach ($item in $Model) {
             $endpoint = "$script:aitoolkitBaseUrl/openai/load/$item"
+            Write-Verbose "Loading model $item from $endpoint"
 
             if ($Unload) {
                 $endpoint += "?unload=true"
